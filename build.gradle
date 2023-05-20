@@ -1,0 +1,76 @@
+plugins {
+    id 'java'
+    id 'idea'
+}
+
+import org.gradle.internal.os.OperatingSystem
+
+switch (OperatingSystem.current()) {
+    case OperatingSystem.LINUX:
+        def osArch = System.getProperty("os.arch")
+        project.ext.overrunglNatives = osArch.startsWith("arm") || osArch.startsWith("aarch64")
+                ? "natives-linux-${osArch.contains("64") || osArch.startsWith("armv8") ? "arm64" : "arm32"}"
+                : "natives-linux"
+        break
+    case OperatingSystem.MAC_OS:
+        project.ext.overrunglNatives = System.getProperty("os.arch").startsWith("aarch64") ? "natives-macos-arm64" : "natives-macos"
+        break
+    case OperatingSystem.WINDOWS:
+        def osArch = System.getProperty("os.arch")
+        project.ext.overrunglNatives = osArch.contains("64")
+                ? "natives-windows${osArch.startsWith("aarch64") ? "-arm64" : ""}"
+                : "natives-windows-x86"
+        break
+}
+
+group = 'io.github.squid233'
+version = '0.1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    // temporary maven repositories
+    maven { url 'https://s01.oss.sonatype.org/content/repositories/releases' }
+    maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots' }
+}
+
+dependencies {
+    // Some useful libraries
+    implementation "io.github.over-run:bin-packing:0.2.0"
+    implementation "io.github.over-run:bin-tag:0.1.0"
+    implementation "io.github.over-run:timer:0.2.0"
+    implementation "io.github.over-run:unifont:15.0.01.2"
+
+    // OverrunGL
+    implementation platform("io.github.over-run:overrungl-bom:0.1.0-SNAPSHOT")
+
+    implementation "io.github.over-run:overrungl"
+    implementation "io.github.over-run:overrungl-glfw"
+    implementation "io.github.over-run:overrungl-joml"
+    implementation "io.github.over-run:overrungl-opengl"
+    implementation "io.github.over-run:overrungl-stb"
+    runtimeOnly "io.github.over-run:overrungl-glfw::$overrunglNatives"
+    runtimeOnly "io.github.over-run:overrungl-stb::$overrunglNatives"
+    implementation "org.joml:joml:1.10.5"
+
+    compileOnly "org.jetbrains:annotations:24.0.1"
+}
+
+def targetJavaVersion = 21
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += '--enable-preview'
+    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+        options.release.set(targetJavaVersion)
+    }
+}
+
+java {
+    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
+    if (JavaVersion.current() < javaVersion) {
+        toolchain.languageVersion.set(JavaLanguageVersion.of(targetJavaVersion))
+    }
+    archivesBaseName = "game2d-dev-tutorial"
+    withSourcesJar()
+}
+
+idea.module.inheritOutputDirs = true
